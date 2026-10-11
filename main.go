@@ -89,12 +89,20 @@ func run() error {
 	}
 
 	url := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", srv.Port, srv.Token)
-	fmt.Printf("Reviewing %s (%d design doc(s))\n%s\nCtrl+C to stop.\n", pr.URL, len(docs), url)
+	fmt.Printf("Reviewing %s (%d design doc(s))\n", pr.URL, len(docs))
+	// The URL carries the session token, so only print it when no browser took it.
+	opened := false
 	if !*noBrowser {
 		if err := browser.New("", os.Stdout, os.Stderr).Browse(url); err != nil {
 			fmt.Fprintln(os.Stderr, "could not open browser:", err)
+		} else {
+			opened = true
 		}
 	}
+	if !opened {
+		fmt.Println(url)
+	}
+	fmt.Println("Ctrl+C to stop.")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

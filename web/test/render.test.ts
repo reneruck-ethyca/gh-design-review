@@ -52,3 +52,11 @@ describe("sourceLines", () => {
     expect([...root.querySelectorAll(".changed")].map((e) => e.textContent)).toEqual(["b"]);
   });
 });
+
+describe("sanitize", () => {
+  it("strips CSS from the doc", () => {
+    const html = renderMarkdown('<style>.topbar{display:none}</style>\n\n<p style="position:fixed">x</p>\n');
+    expect(html).not.toMatch(/<style|style=/);
+    expect(html).toContain(">x</p>");
+  });
+});

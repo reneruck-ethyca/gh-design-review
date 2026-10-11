@@ -58,7 +58,8 @@ const md = markdownIt({ html: true, linkify: true })
   .use(sourceLines);
 
 export function renderMarkdown(src: string): string {
-  return DOMPurify.sanitize(md.render(src));
+  // No CSS from the doc: it could restyle or spoof the review UI. GitHub strips it too.
+  return DOMPurify.sanitize(md.render(src), { FORBID_TAGS: ["style"], FORBID_ATTR: ["style"] });
 }
 
 export type Block = { el: HTMLElement; s: number; e: number };
