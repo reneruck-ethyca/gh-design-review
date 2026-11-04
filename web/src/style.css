@@ -7,6 +7,7 @@
   --subtle: light-dark(#f6f8fa, #151b23);
   --accent: light-dark(#0969da, #4493f8);
   --green: #2da44e;
+  --cmt: light-dark(#fff8c580, #3b2f0040);
   --hl: light-dark(#fff8c5, #3b2f0080);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
 }
@@ -28,13 +29,14 @@ textarea { width: 100%; box-sizing: border-box; min-height: 64px; font: inherit;
 .banner { padding: 8px 16px; background: #fff8c5; color: #3b2300; border-bottom: 1px solid #d4a72c; }
 .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: 640px; padding: 10px 16px; border-radius: 6px; background: #cf222e; color: #fff; white-space: pre-wrap; cursor: pointer; z-index: 20; }
 
-.layout { display: grid; grid-template-columns: 1fr 380px; }
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 380px; }
 .doc-col { position: relative; padding: 32px 56px; min-width: 0; }
 .doc-col .markdown-body { max-width: 860px; margin: 0 auto; background: transparent; }
 .skeleton div { height: 14px; margin: 14px auto; max-width: 860px; border-radius: 4px; background: var(--subtle); }
 
 /* Changed blocks: a 3px bar left of the block; the inner bg-coloured shadow hides any parent bar. */
 .show-changes .changed { box-shadow: -10px 0 0 0 var(--bg), -13px 0 0 0 var(--green); }
+.markdown-body .commented { background: var(--cmt); cursor: pointer; }
 .markdown-body .hl { background: var(--hl); }
 
 .plus, .badge { position: absolute; z-index: 5; padding: 0 6px; font-size: 12px; line-height: 20px; }
@@ -62,3 +64,11 @@ textarea { width: 100%; box-sizing: border-box; min-height: 64px; font: inherit;
 .submit-dialog { width: 480px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); }
 .submit-dialog h3 { margin-top: 0; }
 .composer.floating { position: absolute; z-index: 7; left: 56px; right: 56px; max-width: 860px; margin: 0 auto; box-shadow: 0 8px 24px rgba(140, 149, 159, 0.3); }
+
+.tree { position: sticky; top: 48px; height: calc(100vh - 48px); overflow: auto; border-right: 1px solid var(--border); padding: 8px; box-sizing: border-box; font-size: 13px; }
+.tree ul { list-style: none; margin: 0; padding-left: 12px; }
+.tree > ul { padding-left: 0; }
+.tree summary { cursor: pointer; padding: 2px 0; color: var(--muted); }
+.tree a { display: block; padding: 2px 6px; border-radius: 6px; color: var(--fg); text-decoration: none; overflow-wrap: anywhere; }
+.tree a:hover { background: var(--subtle); }
+.tree a.active { background: var(--subtle); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }

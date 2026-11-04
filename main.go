@@ -35,7 +35,7 @@ func run() error {
 	var repo, glob string
 	f.StringVar(&repo, "R", "", "Repository `owner/repo` (default: current directory's repo)")
 	f.StringVar(&repo, "repo", "", "Same as -R")
-	f.StringVar(&glob, "glob", "docs/designs/**/*.md", "Design doc glob")
+	f.StringVar(&glob, "glob", "docs/**/*.md", "Glob for which changed files to list")
 	port := f.Int("port", 0, "Port (default: random free port)")
 	noBrowser := f.Bool("no-browser", false, "Print the URL instead of opening a browser")
 
@@ -89,7 +89,7 @@ func run() error {
 	}
 
 	url := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", srv.Port, srv.Token)
-	fmt.Printf("Reviewing %s (%d design doc(s))\n", pr.URL, len(docs))
+	fmt.Printf("Reviewing %s (%d markdown file(s))\n", pr.URL, len(docs))
 	// The URL carries the session token, so only print it when no browser took it.
 	opened := false
 	if !*noBrowser {

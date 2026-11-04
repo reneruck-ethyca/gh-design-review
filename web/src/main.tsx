@@ -93,6 +93,31 @@ function App() {
     });
   }, [threads, file, layout]);
 
+  // Innermost blocks covered by each thread's line range.
+  const commented = useMemo(() => {
+    const m = new Map<HTMLElement, Thread[]>();
+    const bs = docRef.current ? blocks(docRef.current) : [];
+    for (const x of placed) {
+      if (x.p.section !== "doc") continue;
+      for (const b of blocksInRange(bs, x.p.start, x.p.line)) m.set(b.el, [...(m.get(b.el) ?? []), x.t]);
+    }
+    return m;
+  }, [placed]);
+
+  useLayoutEffect(() => {
+    const root = docRef.current!;
+    root.querySelectorAll(".commented").forEach((e) => e.classList.remove("commented"));
+    commented.forEach((_, el) => el.classList.add("commented"));
+  }, [commented]);
+
+  const onDocClick = (e: MouseEvent) => {
+    const el = (e.target as Element).closest<HTMLElement>(".commented");
+    // Leave link clicks and text selections (the user is about to comment) alone.
+    if (!el || !docRef.current!.contains(el) || (e.target as Element).closest("a") || !getSelection()?.isCollapsed) return;
+    const ts = commented.get(el);
+    if (ts) focusThread(ts[0].id);
+  };
+
   // Preact 11 no longer appends "px" to numeric styles.
   const topOf = (el: Element) => `${el.getBoundingClientRect().top - mainRef.current!.getBoundingClientRect().top}px`;
 
@@ -150,12 +175,7 @@ function App() {
     <>
       <header class="topbar">
         {pr && <a class="title" href={pr.url} target="_blank" rel="noopener noreferrer">#{pr.number} {pr.title}</a>}
-        {pr && pr.docs.length > 1 && (
-          <select value={path} onChange={(e) => setPath(e.currentTarget.value)}>
-            {pr.docs.map((d) => <option value={d.path}>{d.path}</option>)}
-          </select>
-        )}
-        {pr && pr.docs.length === 1 && <code>{path}</code>}
+        <code class="muted">{path}</code>
         <span class="spacer" />
         <label><input type="checkbox" checked={showChanges} onChange={(e) => setShowChanges(e.currentTarget.checked)} /> Show changes</label>
         <button onClick={() => reload()}>Refresh</button>
@@ -165,7 +185,8 @@ function App() {
       </header>
       {banner && <div class="banner">{banner} <button onClick={() => location.reload()}>Reload</button></div>}
       <div class="layout">
-        <main ref={mainRef} class="doc-col" onMouseUp={onMouseUp} onMouseLeave={() => setHover(null)}
+        <nav class="tree">{pr && <Tree docs={pr.docs} path={path} onSelect={setPath} />}</nav>
+        <main ref={mainRef} class="doc-col" onMouseUp={onMouseUp} onClick={onDocClick} onMouseLeave={() => setHover(null)}
           onMouseOver={(e) => {
             const b = (e.target as Element).closest<HTMLElement>("[data-line-start]");
             if (b && docRef.current!.contains(b)) setHover(b);
@@ -212,6 +233,51 @@ function App() {
     </>
   );
 }
+
+type TreeNode = { name: string; doc?: PR["docs"][number]; kids: Map<string, TreeNode> };
+
+function buildTree(docs: PR["docs"]): TreeNode {
+  const root: TreeNode = { name: "", kids: new Map() };
+  for (const d of docs) {
+    let n = root;
+    for (const seg of d.path.split("/")) {
+      if (!n.kids.has(seg)) n.kids.set(seg, { name: seg, kids: new Map() });
+      n = n.kids.get(seg)!;
+    }
+    n.doc = d;
+  }
+  return root;
+}
+
+// Directories sort before files; a directory holding only one directory is shown as "a/b/c".
+function TreeLevel({ node, path, onSelect }: { node: TreeNode; path: string; onSelect: (p: string) => void }) {
+  const kids = [...node.kids.values()].sort((a, b) => +!!a.doc - +!!b.doc || a.name.localeCompare(b.name));
+  return (
+    <ul>
+      {kids.map((k) => {
+        if (k.doc) {
+          return (
+            <li key={k.name}>
+              <a href={"#" + encodeURIComponent(k.doc.path)} class={k.doc.path === path ? "active" : ""} title={k.doc.path}
+                onClick={(e) => { e.preventDefault(); onSelect(k.doc!.path); }}>
+                {k.name}{k.doc.status === "added" && <span class="label">new</span>}
+              </a>
+            </li>
+          );
+        }
+        let dir = k, name = k.name;
+        while (!dir.doc && dir.kids.size === 1 && ![...dir.kids.values()][0].doc) {
+          dir = [...dir.kids.values()][0];
+          name += "/" + dir.name;
+        }
+        return <li key={name}><details open><summary>{name}</summary><TreeLevel node={dir} path={path} onSelect={onSelect} /></details></li>;
+      })}
+    </ul>
+  );
+}
+
+const Tree = ({ docs, path, onSelect }: { docs: PR["docs"]; path: string; onSelect: (p: string) => void }) =>
+  <TreeLevel node={useMemo(() => buildTree(docs), [docs])} path={path} onSelect={onSelect} />;
 
 type PanelProps = {
   placed: Placed[];
