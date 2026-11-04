@@ -221,6 +221,21 @@ const threadsQuery = `query($owner:String!,$repo:String!,$number:Int!,$cursor:St
     }
   } } }`
 
+// threadNode is one reviewThreads node as GraphQL returns it. Its Comments field
+// carries the same json name as Thread.Comments, so it needs the explicit tag:
+// without it the embedded Thread.Comments wins the exact-name match and the
+// {"nodes": [...]} object fails to decode into []Comment.
+type threadNode struct {
+	Thread
+	Comments struct {
+		Nodes []struct {
+			ID, Body, BodyHTML, CreatedAt, URL, State string
+			FullDatabaseID                            string // BigInt, encoded as a string
+			Author                                    *struct{ Login, AvatarURL string }
+		}
+	} `json:"comments"`
+}
+
 // Threads returns every review thread on path, normalised.
 func (c *Client) Threads(path string) ([]Thread, error) {
 	out := []Thread{}
@@ -234,16 +249,7 @@ func (c *Client) Threads(path string) ([]Thread, error) {
 							HasNextPage bool
 							EndCursor   string
 						}
-						Nodes []struct {
-							Thread
-							Comments struct {
-								Nodes []struct {
-									ID, Body, BodyHTML, CreatedAt, URL, State string
-									FullDatabaseID                            string // BigInt, encoded as a string
-									Author                                    *struct{ Login, AvatarURL string }
-								}
-							}
-						}
+						Nodes []threadNode
 					}
 				}
 			}
