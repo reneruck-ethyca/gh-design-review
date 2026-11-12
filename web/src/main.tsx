@@ -37,6 +37,7 @@ function App() {
     api.pr().then((p) => {
       setPr(p);
       const fromHash = decodeURIComponent(location.hash.slice(1));
+      document.title = `Design Review: ${p.title}`;
       setPath(p.docs.some((d) => d.path === fromHash) ? fromHash : p.docs[0]?.path ?? "");
     }).catch(fail);
   }, []);
