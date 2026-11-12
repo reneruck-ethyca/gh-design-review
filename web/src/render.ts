@@ -54,7 +54,8 @@ const md = markdownIt({ html: true, linkify: true })
   .use(taskLists)
   .use(footnote)
   .use(alerts)
-  .use(anchor)
+  // GitHub's slug rule, so in-doc links written against GitHub ("#41-what-…" for "4.1 What …") resolve.
+  .use(anchor, { slugify: (s: string) => s.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, "").replace(/\s/g, "-") })
   .use(sourceLines);
 
 export function renderMarkdown(src: string): string {
@@ -88,8 +89,9 @@ function resolve(docPath: string, rel: string) {
   return { path: decodeURIComponent(u.pathname.slice(1)), hash: u.hash };
 }
 
-// Point relative images at the blob proxy and relative links at the file on GitHub.
-export function rewriteLinks(root: HTMLElement, docPath: string, repoBlobUrl: string) {
+// Point relative images at the blob proxy. Relative links to a doc in the PR get data-doc/data-anchor
+// so the app opens them in place; other relative links go to the file on GitHub.
+export function rewriteLinks(root: HTMLElement, docPath: string, repoBlobUrl: string, prDocs: Set<string>) {
   for (const img of root.querySelectorAll<HTMLImageElement>("img[src]")) {
     const src = img.getAttribute("src")!;
     if (isRelative(src)) img.src = "/api/blob?path=" + encodeURIComponent(resolve(docPath, src).path);
@@ -99,6 +101,12 @@ export function rewriteLinks(root: HTMLElement, docPath: string, repoBlobUrl: st
     if (href.startsWith("#")) continue;
     if (isRelative(href)) {
       const r = resolve(docPath, href);
+      if (prDocs.has(r.path)) {
+        a.href = "#" + encodeURIComponent(r.path);
+        a.dataset.doc = r.path;
+        a.dataset.anchor = decodeURIComponent(r.hash.slice(1));
+        continue;
+      }
       a.href = `${repoBlobUrl}/${r.path}${r.hash}`;
     }
     a.target = "_blank";

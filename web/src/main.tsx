@@ -27,6 +27,7 @@ function App() {
   const docRef = useRef<HTMLElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [reviewBody, setReviewBody] = useState("");
+  const pendingAnchor = useRef<string | null>(null); // set when a link opens another doc; "" means its top
 
   const fail = (e: unknown) => {
     if (e instanceof ApiError && (e.code === "stale_head" || e.code === "server_down")) setBanner(e.message);
@@ -36,8 +37,8 @@ function App() {
   useEffect(() => {
     api.pr().then((p) => {
       setPr(p);
-      const fromHash = decodeURIComponent(location.hash.slice(1));
       document.title = `Design Review: ${p.title}`;
+      const fromHash = decodeURIComponent(location.hash.slice(1));
       setPath(p.docs.some((d) => d.path === fromHash) ? fromHash : p.docs[0]?.path ?? "");
     }).catch(fail);
   }, []);
@@ -59,11 +60,18 @@ function App() {
     const root = docRef.current;
     if (!root || !file || !pr) return;
     root.innerHTML = renderMarkdown(file.content);
-    rewriteLinks(root, file.path, `${new URL(pr.url).origin}/${pr.headOwner}/${pr.headRepo}/blob/${file.headSha}`);
+    rewriteLinks(root, file.path, `${new URL(pr.url).origin}/${pr.headOwner}/${pr.headRepo}/blob/${file.headSha}`,
+      new Set(pr.docs.map((d) => d.path)));
+    const anchor = pendingAnchor.current;
+    pendingAnchor.current = null;
+    if (anchor !== null) scrollToAnchor(anchor, "auto");
     // In an added file every block is new, so bars would carry no information.
     if (file.status !== "added") markChanged(root, file.addedLines);
     setLayout((l) => l + 1);
-    renderMermaid(root).then(() => setLayout((l) => l + 1));
+    renderMermaid(root).then(() => {
+      setLayout((l) => l + 1);
+      if (anchor) scrollToAnchor(anchor, "auto"); // diagrams above the target have changed its offset
+    });
   }, [file]);
 
   useEffect(() => {
@@ -111,7 +119,28 @@ function App() {
     commented.forEach((_, el) => el.classList.add("commented"));
   }, [commented]);
 
+  const scrollToAnchor = (id: string, behavior: ScrollBehavior = "smooth") => {
+    const root = docRef.current!;
+    (id ? root.querySelector(`[id="${CSS.escape(id)}"]`) : root)?.scrollIntoView({ block: "start", behavior });
+  };
+
   const onDocClick = (e: MouseEvent) => {
+    // The URL hash holds the selected doc path, so handle doc and anchor links here instead of navigating.
+    const a = (e.target as Element).closest("a");
+    const href = a?.getAttribute("href");
+    if (a?.dataset.doc !== undefined) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let the browser open a new tab
+      e.preventDefault();
+      if (a.dataset.doc === path) return scrollToAnchor(a.dataset.anchor!);
+      pendingAnchor.current = a.dataset.anchor!;
+      setPath(a.dataset.doc);
+      return;
+    }
+    if (href?.startsWith("#")) {
+      e.preventDefault();
+      scrollToAnchor(decodeURIComponent(href.slice(1)));
+      return;
+    }
     const el = (e.target as Element).closest<HTMLElement>(".commented");
     // Leave link clicks and text selections (the user is about to comment) alone.
     if (!el || !docRef.current!.contains(el) || (e.target as Element).closest("a") || !getSelection()?.isCollapsed) return;
