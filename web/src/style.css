@@ -72,3 +72,27 @@ textarea { width: 100%; box-sizing: border-box; min-height: 64px; font: inherit;
 .tree a { display: block; padding: 2px 6px; border-radius: 6px; color: var(--fg); text-decoration: none; overflow-wrap: anywhere; }
 .tree a:hover { background: var(--subtle); }
 .tree a.active { background: var(--subtle); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
+
+/* Wide tables grow past the text column to the doc column's width, centred; narrower ones stay left-aligned. */
+.doc-col { container-type: inline-size; }
+.markdown-body table { min-width: 100%; max-width: 100cqi; position: relative; left: 50%; transform: translateX(-50%); }
+/* Tables that still overflow: a scrollbar that stays visible (macOS hides overlay scrollbars) and faded edges. */
+.markdown-body table::-webkit-scrollbar { height: 8px; }
+.markdown-body table::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+@property --fade-l { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --fade-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+/* --fading is invalid (so no mask) unless the scroll timeline is active; a mask would otherwise clip the .changed bar. */
+@keyframes table-fade {
+  0% { --fade-l: 0px; --fade-r: 48px; }
+  10%, 90% { --fade-l: 48px; --fade-r: 48px; }
+  100% { --fade-l: 48px; --fade-r: 0px; }
+  from, to { --fading: ; }
+}
+@supports (animation-timeline: scroll()) {
+  .markdown-body table {
+    --fading: initial;
+    animation: table-fade linear both;
+    animation-timeline: scroll(self inline);
+    mask-image: var(--fading) linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  }
+}
